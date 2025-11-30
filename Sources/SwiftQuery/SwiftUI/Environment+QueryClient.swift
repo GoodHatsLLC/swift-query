@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 // MARK: - Environment Key
@@ -31,7 +32,7 @@ extension View {
 public struct QueryClientProvider<Content: View>: View {
     private let client: QueryClient
     private let content: Content
-    
+
     public init(
         cacheConfiguration: CacheDatabaseConfiguration = .init(),
         defaultOptions: QueryOptions = .default,
@@ -43,7 +44,7 @@ public struct QueryClientProvider<Content: View>: View {
         )
         self.content = content()
     }
-    
+
     public init(
         client: QueryClient,
         @ViewBuilder content: () -> Content
@@ -51,9 +52,10 @@ public struct QueryClientProvider<Content: View>: View {
         self.client = client
         self.content = content()
     }
-    
+
     public var body: some View {
         content
             .environment(\.queryClient, client)
     }
 }
+#endif

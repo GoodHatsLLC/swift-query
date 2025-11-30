@@ -82,14 +82,27 @@ public struct CacheDatabaseConfiguration: Sendable {
         self.maxSize = maxSize
     }
     
-    /// In-memory database (for testing)
-    public static let inMemory = CacheDatabaseConfiguration(path: ":memory:")
+    /// In-memory-style database (for testing)
+    ///
+    /// Uses a temporary on-disk path to avoid WAL limitations of SQLite's
+    /// pure in-memory databases on some platforms.
+    public static var inMemory: CacheDatabaseConfiguration {
+        CacheDatabaseConfiguration(
+            path: FileManager.default.temporaryDirectory
+                .appendingPathComponent("SwiftQuery-\(UUID().uuidString).sqlite")
+                .path,
+            useWAL: false
+        )
+    }
 }
 
 /// Creates and configures a database pool for the cache
 public func createDatabasePool(configuration: CacheDatabaseConfiguration) throws -> DatabasePool {
     var config = Configuration()
-    
+
+    // Avoid WAL when explicitly disabled
+    config.journalMode = configuration.useWAL ? .wal : .default
+
     // Performance optimizations for a cache database
     config.prepareDatabase { db in
         // Use WAL mode for better concurrent access

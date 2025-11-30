@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 /// Property wrapper for declarative data fetching in SwiftUI.
@@ -199,3 +200,4 @@ public struct UseQuery<K: QueryKey, Content: View>: View {
         }
     }
 }
+#endif

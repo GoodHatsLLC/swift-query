@@ -130,13 +130,13 @@ extension QueryCacheEntry {
     /// Get all cache keys matching a tag prefix
     public static func keysMatching(tag: QueryTag, in db: Database) throws -> [String] {
         let pattern = tag.segments.map { "\"\($0)\"" }.joined(separator: "%")
-        
+
         return try QueryCacheEntry
             .select(Columns.cacheKey)
             .filter(Columns.tags.like("%\(pattern)%"))
             .filter(Columns.expiresAt == nil || Columns.expiresAt > Date())
+            .asRequest(of: String.self)
             .fetchAll(db)
-            .map(\.cacheKey)
     }
     
     /// Mark matching entries as invalidated

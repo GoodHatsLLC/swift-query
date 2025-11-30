@@ -36,7 +36,8 @@ final class QueryCacheTests: XCTestCase {
     func testExists() async throws {
         let user = TestUser(id: 1, name: "Test")
         
-        XCTAssertFalse(try await cache.exists(key: "user:1"))
+        let initialExists = try await cache.exists(key: "user:1")
+        XCTAssertFalse(initialExists)
         
         try await cache.set(
             key: "user:1",
@@ -46,7 +47,8 @@ final class QueryCacheTests: XCTestCase {
             cacheTime: .hours(1)
         )
         
-        XCTAssertTrue(try await cache.exists(key: "user:1"))
+        let finalExists = try await cache.exists(key: "user:1")
+        XCTAssertTrue(finalExists)
     }
     
     func testInvalidateByTag() async throws {
