@@ -23,7 +23,7 @@ import SwiftUI
 /// ```
 @propertyWrapper
 @MainActor
-public struct Mutation<Input: Sendable, Output: Sendable>: DynamicProperty {
+public struct Mutation<Input: Sendable, Output: Sendable>: @preconcurrency DynamicProperty {
     @State private var state: MutationState<Input, Output>
     
     public init(

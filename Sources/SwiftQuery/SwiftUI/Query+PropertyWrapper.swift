@@ -29,7 +29,7 @@ import SwiftUI
 /// ```
 @propertyWrapper
 @MainActor
-public struct Query<K: QueryKey>: DynamicProperty {
+public struct Query<K: QueryKey>: @preconcurrency DynamicProperty {
     @Environment(\.queryClient) private var client
     @State private var observer: QueryObserver<K>?
     
