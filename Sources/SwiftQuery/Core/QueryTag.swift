@@ -1,0 +1,90 @@
+import Foundation
+
+/// Hierarchical tags enabling cascade invalidation.
+///
+/// Tags use a segment-based structure where invalidating a parent tag
+/// automatically invalidates all child tags. For example, invalidating
+/// `QueryTag("users")` will also invalidate `QueryTag("users", "123")`.
+///
+/// ```swift
+/// let usersTag = QueryTag("users")
+/// let userTag = QueryTag("users", "123")
+/// let userPostsTag = QueryTag("users", "123", "posts")
+///
+/// usersTag.matches(userTag)      // true - parent matches child
+/// usersTag.matches(userPostsTag) // true - ancestor matches descendant
+/// userTag.matches(usersTag)      // false - child doesn't match parent
+/// ```
+public struct QueryTag: Hashable, Sendable, ExpressibleByStringLiteral, CustomStringConvertible {
+    public let segments: [String]
+    
+    public init(_ segments: String...) {
+        self.segments = segments
+    }
+    
+    public init(segments: [String]) {
+        self.segments = segments
+    }
+    
+    public init(stringLiteral value: String) {
+        self.segments = [value]
+    }
+    
+    /// Returns true if self is a prefix of (or equal to) other.
+    /// This enables cascade invalidation where invalidating a parent
+    /// tag also invalidates all child tags.
+    public func matches(_ other: QueryTag) -> Bool {
+        guard segments.count <= other.segments.count else { return false }
+        return segments.enumerated().allSatisfy { other.segments[$0.offset] == $0.element }
+    }
+    
+    /// JSON representation for GRDB storage
+    public var jsonEncoded: String {
+        let data = try? JSONEncoder().encode(segments)
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+    }
+    
+    public var description: String {
+        segments.joined(separator: ".")
+    }
+}
+
+// MARK: - Common Tag Factories
+
+extension QueryTag {
+    public static let users: QueryTag = "users"
+    public static let posts: QueryTag = "posts"
+    public static let comments: QueryTag = "comments"
+    
+    public static func user(_ id: some CustomStringConvertible) -> QueryTag {
+        QueryTag("users", String(describing: id))
+    }
+    
+    public static func userPosts(_ userId: some CustomStringConvertible) -> QueryTag {
+        QueryTag("users", String(describing: userId), "posts")
+    }
+    
+    public static func post(_ id: some CustomStringConvertible) -> QueryTag {
+        QueryTag("posts", String(describing: id))
+    }
+    
+    public static func postComments(_ postId: some CustomStringConvertible) -> QueryTag {
+        QueryTag("posts", String(describing: postId), "comments")
+    }
+}
+
+// MARK: - Tag Set Utilities
+
+extension Set where Element == QueryTag {
+    /// Checks if any tag in this set matches the given tag (for invalidation)
+    public func containsMatch(for tag: QueryTag) -> Bool {
+        contains { tag.matches($0) }
+    }
+    
+    /// JSON representation for GRDB storage
+    public var jsonEncoded: String {
+        let allSegments = flatMap(\.segments)
+        let data = try? JSONEncoder().encode(Array(Set(allSegments)))
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+    }
+}
