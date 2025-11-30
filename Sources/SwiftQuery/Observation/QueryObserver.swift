@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Observation)
+import Observation
+#endif
 
 /// Bridges cache changes to @Observable for SwiftUI integration.
 ///
@@ -7,7 +10,9 @@ import Foundation
 /// 2. Returns cached data immediately if available
 /// 3. Triggers background refetch if data is stale
 /// 4. Subscribes to cache changes for reactive updates
+#if canImport(Observation)
 @Observable
+#endif
 @MainActor
 public final class QueryObserver<K: QueryKey> {
     // MARK: - Public State
@@ -104,7 +109,7 @@ public final class QueryObserver<K: QueryKey> {
     }
     
     private func observeCacheChanges() async {
-        for await entry in cache.observe(key: key.cacheKey) {
+        for await entry in await cache.observe(key: key.cacheKey) {
             guard !Task.isCancelled else { break }
             
             if let entry {

@@ -52,71 +52,77 @@ final class QueryTagTests: XCTestCase {
 
 final class QueryStateTests: XCTestCase {
     
-    @MainActor
-    func testInitialState() {
-        let state = QueryState<String>()
-        
-        XCTAssertNil(state.data)
-        XCTAssertNil(state.error)
-        XCTAssertEqual(state.status, .idle)
-        XCTAssertEqual(state.fetchStatus, .idle)
-        XCTAssertFalse(state.isPending)
-        XCTAssertFalse(state.isLoading)
-        XCTAssertFalse(state.isSuccess)
-        XCTAssertFalse(state.isError)
+    func testInitialState() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+
+            XCTAssertNil(state.data)
+            XCTAssertNil(state.error)
+            XCTAssertEqual(state.status, .idle)
+            XCTAssertEqual(state.fetchStatus, .idle)
+            XCTAssertFalse(state.isPending)
+            XCTAssertFalse(state.isLoading)
+            XCTAssertFalse(state.isSuccess)
+            XCTAssertFalse(state.isError)
+        }
     }
-    
-    @MainActor
-    func testSetData() {
-        let state = QueryState<String>()
-        state.setData("Hello")
-        
-        XCTAssertEqual(state.data, "Hello")
-        XCTAssertEqual(state.status, .success)
-        XCTAssertTrue(state.isSuccess)
-        XCTAssertNotNil(state.dataUpdatedAt)
+
+    func testSetData() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setData("Hello")
+
+            XCTAssertEqual(state.data, "Hello")
+            XCTAssertEqual(state.status, .success)
+            XCTAssertTrue(state.isSuccess)
+            XCTAssertNotNil(state.dataUpdatedAt)
+        }
     }
-    
-    @MainActor
-    func testSetError() {
-        let state = QueryState<String>()
-        state.setError(TestError.test)
-        
-        XCTAssertNotNil(state.error)
-        XCTAssertEqual(state.status, .error)
-        XCTAssertTrue(state.isError)
-        XCTAssertEqual(state.failureCount, 1)
+
+    func testSetError() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setError(TestError.test)
+
+            XCTAssertNotNil(state.error)
+            XCTAssertEqual(state.status, .error)
+            XCTAssertTrue(state.isError)
+            XCTAssertEqual(state.failureCount, 1)
+        }
     }
-    
-    @MainActor
-    func testSetFetching() {
-        let state = QueryState<String>()
-        state.setFetching(true)
-        
-        XCTAssertEqual(state.fetchStatus, .fetching)
-        XCTAssertEqual(state.status, .pending)
-        XCTAssertTrue(state.isPending)
-        XCTAssertTrue(state.isLoading)
+
+    func testSetFetching() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setFetching(true)
+
+            XCTAssertEqual(state.fetchStatus, .fetching)
+            XCTAssertEqual(state.status, .pending)
+            XCTAssertTrue(state.isPending)
+            XCTAssertTrue(state.isLoading)
+        }
     }
-    
-    @MainActor
-    func testIsRefetching() {
-        let state = QueryState<String>()
-        state.setData("Hello")
-        state.setFetching(true)
-        
-        XCTAssertTrue(state.isRefetching)
-        XCTAssertTrue(state.isSuccess)  // Still success because we have data
+
+    func testIsRefetching() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setData("Hello")
+            state.setFetching(true)
+
+            XCTAssertTrue(state.isRefetching)
+            XCTAssertTrue(state.isSuccess)  // Still success because we have data
+        }
     }
-    
-    @MainActor
-    func testReset() {
-        let state = QueryState<String>()
-        state.setData("Hello")
-        state.reset()
-        
-        XCTAssertNil(state.data)
-        XCTAssertEqual(state.status, .idle)
+
+    func testReset() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setData("Hello")
+            state.reset()
+
+            XCTAssertNil(state.data)
+            XCTAssertEqual(state.status, .idle)
+        }
     }
 }
 
