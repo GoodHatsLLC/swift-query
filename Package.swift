@@ -12,9 +12,15 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "SQLiteSnapshotShims",
+            path: "Sources/SQLiteSnapshotShims",
+            publicHeadersPath: "."
+        ),
+        .target(
             name: "SwiftQuery",
             dependencies: [
-                .product(name: "GRDB", package: "GRDB.swift")
+                .product(name: "GRDB", package: "GRDB.swift"),
+                "SQLiteSnapshotShims"
             ]
         ),
         .testTarget(

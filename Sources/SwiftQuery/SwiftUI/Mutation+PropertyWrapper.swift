@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 /// Property wrapper for declarative mutations in SwiftUI.
@@ -23,7 +24,7 @@ import SwiftUI
 /// ```
 @propertyWrapper
 @MainActor
-public struct Mutation<Input: Sendable, Output: Sendable>: @preconcurrency DynamicProperty {
+public struct Mutation<Input: Sendable, Output: Sendable>: DynamicProperty {
     @State private var state: MutationState<Input, Output>
     
     public init(
@@ -137,3 +138,4 @@ public struct UseMutation<Input: Sendable, Output: Sendable, Content: View>: Vie
         content(mutation)
     }
 }
+#endif

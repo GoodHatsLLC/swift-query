@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Observation)
+import Observation
+#endif
 
 /// The status of a mutation
 public enum MutationStatus: String, Sendable, Equatable {
@@ -29,7 +32,9 @@ public enum MutationStatus: String, Sendable, Equatable {
 /// }
 /// .disabled(createPost.isPending)
 /// ```
+#if canImport(Observation)
 @Observable
+#endif
 @MainActor
 public final class MutationState<Input: Sendable, Output: Sendable> {
     // MARK: - Core State

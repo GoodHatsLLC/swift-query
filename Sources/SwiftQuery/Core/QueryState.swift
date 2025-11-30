@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Observation)
+import Observation
+#endif
 
 /// The status of a query's data
 public enum QueryStatus: String, Sendable, Equatable {
@@ -56,7 +59,9 @@ public enum QueryResult<T: Sendable>: Sendable {
 ///     ContentView(data: data)
 /// }
 /// ```
+#if canImport(Observation)
 @Observable
+#endif
 @MainActor
 public final class QueryState<T: Sendable>: Sendable {
     // MARK: - Core State
