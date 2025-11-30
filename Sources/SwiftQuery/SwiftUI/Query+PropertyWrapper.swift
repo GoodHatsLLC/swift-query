@@ -28,6 +28,7 @@ import SwiftUI
 /// }
 /// ```
 @propertyWrapper
+@MainActor
 public struct Query<K: QueryKey>: DynamicProperty {
     @Environment(\.queryClient) private var client
     @State private var observer: QueryObserver<K>?
@@ -87,6 +88,7 @@ public struct Query<K: QueryKey>: DynamicProperty {
 // MARK: - Query Actions
 
 /// Actions available via the projected value ($query)
+@MainActor
 public struct QueryActions<K: QueryKey> {
     fileprivate weak var observer: QueryObserver<K>?
     fileprivate let client: QueryClient
@@ -113,30 +115,10 @@ public struct QueryActions<K: QueryKey> {
     }
 }
 
-// MARK: - Trailing Closure Syntax Support
-
-extension Query {
-    /// Initialize with trailing closure syntax
-    ///
-    /// ```swift
-    /// @Query(UserQuery(userId: id)) {
-    ///     try await api.fetchUser(id: id)
-    /// } var user
-    /// ```
-    public init(
-        _ key: K,
-        options: QueryOptions = .default,
-        @_implicitSelfCapture fetcher: @escaping @Sendable () async throws -> K.Response
-    ) {
-        self.key = key
-        self.options = options
-        self.fetcher = fetcher
-    }
-}
-
 // MARK: - UseQuery View Modifier
 
 /// View modifier for query lifecycle management
+@MainActor
 public struct UseQueryModifier<K: QueryKey>: ViewModifier {
     let key: K
     let options: QueryOptions
@@ -177,15 +159,16 @@ public struct UseQueryModifier<K: QueryKey>: ViewModifier {
 ///     }
 /// }
 /// ```
+@MainActor
 public struct UseQuery<K: QueryKey, Content: View>: View {
     let key: K
     let options: QueryOptions
     let fetcher: @Sendable () async throws -> K.Response
     let content: (QueryObserver<K>) -> Content
-    
+
     @Environment(\.queryClient) private var client
     @State private var observer: QueryObserver<K>?
-    
+
     public init(
         _ key: K,
         options: QueryOptions = .default,

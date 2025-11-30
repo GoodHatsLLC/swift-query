@@ -188,9 +188,13 @@ public final class QueryState<T: Sendable>: Sendable {
 // MARK: - Equatable for Value Types
 
 extension QueryState: Equatable where T: Equatable {
-    public static func == (lhs: QueryState<T>, rhs: QueryState<T>) -> Bool {
-        lhs.data == rhs.data &&
-        lhs.status == rhs.status &&
-        lhs.fetchStatus == rhs.fetchStatus
+    // Equatable requires nonisolated == operator, which is safe here because
+    // we only compare Sendable value types that don't require actor isolation.
+    public nonisolated static func == (lhs: QueryState<T>, rhs: QueryState<T>) -> Bool {
+        MainActor.assumeIsolated {
+            lhs.data == rhs.data &&
+            lhs.status == rhs.status &&
+            lhs.fetchStatus == rhs.fetchStatus
+        }
     }
 }
