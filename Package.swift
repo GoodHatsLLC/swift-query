@@ -13,7 +13,8 @@ let package = Package(
     targets: [
         .target(
             name: "SQLiteSnapshotShims",
-            path: "Sources/SQLiteSnapshotShims"
+            path: "Sources/SQLiteSnapshotShims",
+            publicHeadersPath: "."
         ),
         .target(
             name: "SwiftQuery",
