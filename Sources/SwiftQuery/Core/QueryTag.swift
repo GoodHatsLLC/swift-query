@@ -15,7 +15,7 @@ import Foundation
 /// usersTag.matches(userPostsTag) // true - ancestor matches descendant
 /// userTag.matches(usersTag)      // false - child doesn't match parent
 /// ```
-public struct QueryTag: Hashable, Sendable, ExpressibleByStringLiteral, CustomStringConvertible {
+public struct QueryTag: Hashable, Sendable, Codable, ExpressibleByStringLiteral, CustomStringConvertible {
     public let segments: [String]
     
     public init(_ segments: String...) {
@@ -80,11 +80,13 @@ extension Set where Element == QueryTag {
     public func containsMatch(for tag: QueryTag) -> Bool {
         contains { tag.matches($0) }
     }
-    
+
     /// JSON representation for GRDB storage
+    /// Encodes all unique segments from all tags as a flat array for LIKE-based queries
     public var jsonEncoded: String {
-        let allSegments = flatMap(\.segments)
-        let data = try? JSONEncoder().encode(Array(Set(allSegments)))
+        let allSegments: [String] = flatMap(\.segments)
+        let uniqueSegments = Array(Set<String>(allSegments))
+        let data = try? JSONEncoder().encode(uniqueSegments)
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
     }
 }

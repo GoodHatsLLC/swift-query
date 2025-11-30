@@ -3,8 +3,9 @@ import SwiftUI
 // MARK: - Environment Key
 
 private struct QueryClientKey: EnvironmentKey {
-    @MainActor
-    static let defaultValue: QueryClient = .shared
+    // EnvironmentKey requires nonisolated defaultValue, but QueryClient.shared is @MainActor.
+    // This is safe because SwiftUI environment values are always accessed on the main thread.
+    nonisolated(unsafe) static let defaultValue: QueryClient = QueryClient()
 }
 
 extension EnvironmentValues {
@@ -27,6 +28,7 @@ extension View {
 // MARK: - Query Client Provider
 
 /// A view that provides a QueryClient to its content
+@MainActor
 public struct QueryClientProvider<Content: View>: View {
     private let client: QueryClient
     private let content: Content

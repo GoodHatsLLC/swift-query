@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 /// GRDB record for cached query responses
-public struct QueryCacheEntry: Codable, FetchableRecord, MutablePersistableRecord, Sendable {
+public struct QueryCacheEntry: Codable, Equatable, FetchableRecord, MutablePersistableRecord, Sendable {
     public static let databaseTableName = "query_cache"
     
     // MARK: - Properties

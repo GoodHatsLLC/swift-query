@@ -22,6 +22,7 @@ import SwiftUI
 /// }
 /// ```
 @propertyWrapper
+@MainActor
 public struct Mutation<Input: Sendable, Output: Sendable>: DynamicProperty {
     @State private var state: MutationState<Input, Output>
     
@@ -69,6 +70,7 @@ public struct Mutation<Input: Sendable, Output: Sendable>: DynamicProperty {
 // MARK: - Mutation Actions
 
 /// Actions available via the projected value ($mutation)
+@MainActor
 public struct MutationActions<Input: Sendable, Output: Sendable> {
     fileprivate let state: MutationState<Input, Output>
     
@@ -112,6 +114,7 @@ extension MutationActions where Input == Void {
 // MARK: - UseMutation View
 
 /// Functional approach to using mutations in views
+@MainActor
 public struct UseMutation<Input: Sendable, Output: Sendable, Content: View>: View {
     @State private var mutation: MutationState<Input, Output>
     let content: (MutationState<Input, Output>) -> Content
