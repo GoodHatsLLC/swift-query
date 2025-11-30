@@ -103,16 +103,16 @@ public final class QueryClient: Sendable {
     /// Invalidate all queries matching the tag prefix
     public func invalidate(tag: QueryTag) async {
         let invalidatedKeys = try? await cache.invalidate(tag: tag)
-        
+
         // Trigger refetch for active queries
         for key in invalidatedKeys ?? [] {
             if let observer = activeQueries[key]?.observer {
                 Task {
-                    await observer.refetch()
+                    await observer.triggerRefetch()
                 }
             }
         }
-        
+
         // Clean up dead references
         cleanupActiveQueries()
     }
@@ -120,10 +120,10 @@ public final class QueryClient: Sendable {
     /// Invalidate a specific query by key
     public func invalidate<K: QueryKey>(key: K) async {
         try? await cache.invalidate(key: key.cacheKey)
-        
+
         if let observer = activeQueries[key.cacheKey]?.observer {
             Task {
-                await observer.refetch()
+                await observer.triggerRefetch()
             }
         }
     }
@@ -231,13 +231,11 @@ private final class AnyWeakQueryObserver: @unchecked Sendable {
 /// Protocol for type-erased query observer access
 @MainActor
 protocol QueryObserverProtocol: AnyObject {
-    @discardableResult
-    func refetch() async -> Any?
+    func triggerRefetch() async
 }
 
 extension QueryObserver: QueryObserverProtocol {
-    @discardableResult
-    public func refetch() async -> Any? {
-        await refetch() as K.Response?
+    func triggerRefetch() async {
+        _ = await refetch()
     }
 }

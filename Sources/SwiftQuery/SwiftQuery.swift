@@ -6,22 +6,16 @@
 // - Swift Observation framework integration
 // - SwiftUI-native APIs
 
-// MARK: - Core Types
+// MARK: - Module Imports
 
 @_exported import Foundation
 
-// Re-export all public types
-public typealias QueryKey = SwiftQuery.QueryKey
-public typealias QueryTag = SwiftQuery.QueryTag
-public typealias QueryState = SwiftQuery.QueryState
-public typealias QueryStatus = SwiftQuery.QueryStatus
-public typealias FetchStatus = SwiftQuery.FetchStatus
-public typealias QueryResult = SwiftQuery.QueryResult
-public typealias QueryOptions = SwiftQuery.QueryOptions
-public typealias QueryClient = SwiftQuery.QueryClient
-public typealias QueryCache = SwiftQuery.QueryCache
-public typealias QueryObserver = SwiftQuery.QueryObserver
-public typealias MutationState = SwiftQuery.MutationState
-public typealias CacheResult = SwiftQuery.CacheResult
-public typealias CacheStats = SwiftQuery.CacheStats
-public typealias CacheDatabaseConfiguration = SwiftQuery.CacheDatabaseConfiguration
+// All public types are declared in their respective files:
+// - Core/QueryKey.swift: QueryKey, AnyQueryKey, QueryOptions
+// - Core/QueryTag.swift: QueryTag
+// - Core/QueryState.swift: QueryStatus, FetchStatus, QueryResult, QueryState
+// - Core/QueryClient.swift: QueryClient
+// - Core/MutationState.swift: MutationStatus, MutationState, MutationBuilder
+// - Cache/QueryCache.swift: CacheResult, QueryCache, CacheStats
+// - Cache/Migrations.swift: CacheDatabaseConfiguration
+// - Observation/QueryObserver.swift: QueryObserver
