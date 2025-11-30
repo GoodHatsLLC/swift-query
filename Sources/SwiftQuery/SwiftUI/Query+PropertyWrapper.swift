@@ -190,7 +190,7 @@ public struct UseQuery<K: QueryKey, Content: View>: View {
         _ key: K,
         options: QueryOptions = .default,
         fetcher: @escaping @Sendable () async throws -> K.Response,
-        @ViewBuilder content: @escaping (QueryObserver<K>) -> Content
+        @_implicitSelfCapture content: @escaping (QueryObserver<K>) -> Content
     ) {
         self.key = key
         self.options = options
