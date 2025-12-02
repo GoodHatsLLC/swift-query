@@ -184,6 +184,14 @@ final class QueryCacheTests: XCTestCase {
         XCTAssertEqual(stats.staleEntries, 0)
     }
 
+    func testDeterministicHashing() {
+        let payload = Data("deterministic".utf8)
+        let second = Data("deterministic".utf8)
+
+        XCTAssertEqual(payload.sha256Hash, second.sha256Hash)
+        XCTAssertEqual(payload.sha256Hash, payload.sha256Hash)
+    }
+
     func testUpsertBehavior() async throws {
         let user1 = TestUser(id: 1, name: "Original")
         let user2 = TestUser(id: 1, name: "Updated")

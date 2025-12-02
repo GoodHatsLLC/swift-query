@@ -104,7 +104,7 @@ public final class QueryClient: Sendable {
         )
 
         // Track for invalidation-triggered refetch
-        activeQueries[key.cacheKey] = AnyWeakQueryObserver(observer)
+        registerActiveObserver(observer, forKey: key.cacheKey)
 
         return observer
     }
@@ -270,6 +270,18 @@ public final class QueryClient: Sendable {
     private func cleanupActiveQueries() {
         activeQueries = activeQueries.filter { $0.value.observer != nil }
     }
+
+    func registerActiveObserver(_ observer: QueryObserverProtocol, forKey key: String) {
+        activeQueries[key] = AnyWeakQueryObserver(observer)
+        cleanupActiveQueries()
+    }
+
+    func unregisterActiveObserver(_ observer: QueryObserverProtocol, forKey key: String) {
+        if let existing = activeQueries[key]?.observer, existing === observer {
+            activeQueries.removeValue(forKey: key)
+        }
+        cleanupActiveQueries()
+    }
 }
 
 // MARK: - Type-Erased Observer Wrapper
@@ -279,6 +291,10 @@ private final class AnyWeakQueryObserver: @unchecked Sendable {
     private weak var _observer: AnyObject?
     
     init<K: QueryKey>(_ observer: QueryObserver<K>) {
+        self._observer = observer
+    }
+
+    init(_ observer: QueryObserverProtocol) {
         self._observer = observer
     }
     
