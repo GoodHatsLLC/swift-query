@@ -56,7 +56,9 @@ public final class QueryObserver<K: QueryKey> {
     public func startObserving() {
         guard !isStarted else { return }
         isStarted = true
-        
+
+        client?.registerActiveObserver(self, forKey: key.cacheKey)
+
         observationTask = Task { [weak self] in
             guard let self else { return }
             
@@ -75,6 +77,8 @@ public final class QueryObserver<K: QueryKey> {
         observationTask = nil
         fetchTask?.cancel()
         fetchTask = nil
+
+        client?.unregisterActiveObserver(self, forKey: key.cacheKey)
     }
     
     // MARK: - Public Actions
@@ -185,7 +189,11 @@ public final class QueryObserver<K: QueryKey> {
         }
         
         if let error = lastError {
-            state.setError(error)
+            if state.hasData {
+                state.setBackgroundError(error)
+            } else {
+                state.setError(error)
+            }
         }
         
         return nil
@@ -226,7 +234,7 @@ public final class QueryObserver<K: QueryKey> {
             // Background fetch failure - keep stale data, just record error
             // Don't change status since we have valid (stale) data
             if !(error is CancellationError) {
-                state.setError(error)
+                state.setBackgroundError(error)
             }
         }
     }

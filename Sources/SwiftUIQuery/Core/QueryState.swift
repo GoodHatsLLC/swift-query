@@ -87,7 +87,10 @@ public final class QueryState<T: Sendable>: Sendable {
     
     /// The latest error, if any
     public private(set) var error: Error?
-    
+
+    /// The latest non-fatal error encountered while keeping cached data
+    public private(set) var backgroundError: Error?
+
     /// The status of the query data
     public private(set) var status: QueryStatus = .idle
     
@@ -96,9 +99,12 @@ public final class QueryState<T: Sendable>: Sendable {
     
     /// When the data was last successfully updated
     public private(set) var dataUpdatedAt: Date?
-    
+
     /// When an error last occurred
     public private(set) var errorUpdatedAt: Date?
+
+    /// When a background error last occurred
+    public private(set) var backgroundErrorUpdatedAt: Date?
     
     /// Number of times the query has failed consecutively
     public private(set) var failureCount: Int = 0
@@ -131,6 +137,9 @@ public final class QueryState<T: Sendable>: Sendable {
     
     /// True if data exists, regardless of staleness
     public var hasData: Bool { data != nil }
+
+    /// True when a background refresh failed but cached data remains
+    public var hasBackgroundError: Bool { backgroundError != nil }
     
     // MARK: - Result for Pattern Matching
     
@@ -175,19 +184,31 @@ public final class QueryState<T: Sendable>: Sendable {
         self.status = .success
         self.dataUpdatedAt = Date()
         self.error = nil
+        self.backgroundError = nil
+        self.backgroundErrorUpdatedAt = nil
         self.failureCount = 0
     }
-    
+
     func setError(_ error: Error) {
         self.error = error
         self.errorUpdatedAt = Date()
+        self.backgroundError = nil
+        self.backgroundErrorUpdatedAt = nil
         self.failureCount += 1
         // Only set status to error if we don't have data
         if data == nil {
             self.status = .error
         }
     }
-    
+
+    func setBackgroundError(_ error: Error) {
+        self.error = error
+        self.errorUpdatedAt = Date()
+        self.backgroundError = error
+        self.backgroundErrorUpdatedAt = Date()
+        self.failureCount += 1
+    }
+
     func setFetching(_ fetching: Bool) {
         self.fetchStatus = fetching ? .fetching : .idle
         if fetching && data == nil && status != .error {
@@ -206,6 +227,8 @@ public final class QueryState<T: Sendable>: Sendable {
         self.fetchStatus = .idle
         self.dataUpdatedAt = nil
         self.errorUpdatedAt = nil
+        self.backgroundError = nil
+        self.backgroundErrorUpdatedAt = nil
         self.failureCount = 0
     }
 }

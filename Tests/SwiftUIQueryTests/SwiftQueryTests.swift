@@ -125,6 +125,35 @@ final class QueryStateTests: XCTestCase {
             XCTAssertEqual(state.status, .idle)
         }
     }
+
+    func testBackgroundErrorTracking() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setData("Existing")
+
+            state.setBackgroundError(TestError.test)
+
+            XCTAssertEqual(state.status, .success)
+            XCTAssertNotNil(state.backgroundError)
+            XCTAssertTrue(state.hasBackgroundError)
+            XCTAssertEqual(state.failureCount, 1)
+            XCTAssertNotNil(state.backgroundErrorUpdatedAt)
+        }
+    }
+
+    func testBackgroundErrorClearsOnSuccess() async {
+        await MainActor.run {
+            let state = QueryState<String>()
+            state.setData("Existing")
+            state.setBackgroundError(TestError.test)
+
+            state.setData("Updated")
+
+            XCTAssertFalse(state.hasBackgroundError)
+            XCTAssertNil(state.backgroundError)
+            XCTAssertNil(state.backgroundErrorUpdatedAt)
+        }
+    }
 }
 
 final class QueryOptionsTests: XCTestCase {

@@ -1,6 +1,8 @@
 import AsyncAlgorithms
+#if canImport(MachO)
 import MachO
-import os
+#endif
+import Synchronization
 
 /// Suspend until the current task context is cancelled, then execute the operation.
 public func withCancellationOperation<T: Sendable>(
@@ -102,46 +104,23 @@ extension AwaitableBox.AlreadyYielded: Sendable, CustomStringConvertible {
 
 extension AwaitableBox.AlreadyYielded: Equatable where Value: Equatable {}
 extension AwaitableBox.AlreadyYielded: Hashable where Value: Hashable {}
-#if canImport(Synchronization)
-  import Synchronization
-#else
-  import os
-#endif
 
 struct Mut<Value>: Sendable, ~Copyable {
-  #if canImport(Synchronization)
-    let lock: Mutex<Value>
-  #else
-    let lock: OSAllocatedUnfairLock<Value>
-  #endif
+  let lock: Mutex<Value>
 }
 
 extension Mut {
-  init(_ initialValue: consuming sending Value) {
-    #if canImport(Synchronization)
-      self.lock = Mutex(initialValue)
-    #else
-      self.lock = OSAllocatedUnfairLock(uncheckedState: initialValue)
-    #endif
-  }
+  init(_ initialValue: consuming sending Value) { self.lock = Mutex(initialValue) }
 
   borrowing func withLock<Result, E>(
     _ body: (inout sending Value) throws(E) -> sending Result
   ) throws(E) -> sending Result where E: Error {
     do {
-      #if canImport(Synchronization)
-        return try lock.withLock { (v) -> Transferring<Result> in
-          nonisolated(unsafe) var copy = v
-          defer { v = copy }
-          return try Transferring(body(&copy))
-        }.value
-      #else
-        return try lock.withLockUnchecked { (v) -> Transferring<Result> in
-          nonisolated(unsafe) var copy = v
-          defer { v = copy }
-          return try Transferring(body(&copy))
-        }.value
-      #endif
+      return try lock.withLock { (v) -> Transferring<Result> in
+        nonisolated(unsafe) var copy = v
+        defer { v = copy }
+        return try Transferring(body(&copy))
+      }.value
     } catch let error as E {
       throw error
     } catch {
@@ -153,19 +132,11 @@ extension Mut {
     _ body: (inout sending Value) throws(E) -> sending Result
   ) throws(E) -> sending Result? where E: Error {
     do {
-      #if canImport(Synchronization)
-        return try lock.withLockIfAvailable { (v) -> Transferring<Result> in
-          nonisolated(unsafe) var copy = v
-          defer { v = copy }
-          return try Transferring(body(&copy))
-        }?.value
-      #else
-        return try lock.withLockIfAvailableUnchecked { (v) -> Transferring<Result> in
-          nonisolated(unsafe) var copy = v
-          defer { v = copy }
-          return try Transferring(body(&copy))
-        }?.value
-      #endif
+      return try lock.withLockIfAvailable { (v) -> Transferring<Result> in
+        nonisolated(unsafe) var copy = v
+        defer { v = copy }
+        return try Transferring(body(&copy))
+      }?.value
     } catch let error as E {
       throw error
     } catch {

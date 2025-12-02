@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+private typealias PlatformSHA256 = CryptoKit.SHA256
+#else
+import Crypto
+private typealias PlatformSHA256 = Crypto.SHA256
+#endif
 import GRDB
 
 /// Result of a cache lookup
@@ -335,10 +342,7 @@ final class CacheEntry<T: Sendable>: AnyCacheEntry {
 
 extension Data {
     var sha256Hash: String {
-        // Simple hash using built-in Swift hashing
-        // For production, consider using CryptoKit
-        var hasher = Hasher()
-        hasher.combine(self)
-        return String(format: "%08x", hasher.finalize())
+        let digest = PlatformSHA256.hash(data: self)
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
