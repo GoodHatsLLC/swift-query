@@ -1,3 +1,8 @@
+// This harness exercises the Linux-only `@Query` test wrapper. Guard the entire
+// file so macOS/iOS builds (which import SwiftUI) keep using the SwiftUI
+// DynamicProperty wrapper without seeing Linux-specific APIs.
+#if !canImport(SwiftUI)
+
 import XCTest
 @testable import SwiftUIQuery
 #if canImport(Observation)
@@ -75,3 +80,5 @@ private actor FetchCounter {
     func increment() { count += 1 }
     var value: Int { count }
 }
+
+#endif
