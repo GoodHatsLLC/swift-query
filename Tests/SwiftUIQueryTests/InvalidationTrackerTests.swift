@@ -68,7 +68,7 @@ final class InvalidationTrackerTests: XCTestCase {
 
         let token1 = try await beginInvalidation(tracker, tag: usersTag)
 
-        await XCTAssertThrowsErrorAsync(try await beginInvalidation(tracker, tag: usersTag)) { error in
+        await XCTAssertThrowsErrorAsync({ try await beginInvalidation(tracker, tag: usersTag) }) { error in
             guard case InvalidationTracker.TrackerError.cycleDetected(let info) = error else {
                 XCTFail("Expected cycleDetected error")
                 return
@@ -141,7 +141,7 @@ final class InvalidationTrackerTests: XCTestCase {
         let token1 = try! await beginInvalidation(tracker, tag: QueryTag("tag1"))
         let token2 = try! await beginInvalidation(tracker, tag: QueryTag("tag2"))
 
-        await XCTAssertThrowsErrorAsync(try await beginInvalidation(tracker, tag: QueryTag("tag3"))) { error in
+        await XCTAssertThrowsErrorAsync({ try await beginInvalidation(tracker, tag: QueryTag("tag3")) }) { error in
             guard case InvalidationTracker.TrackerError.maxDepthExceeded(let depth, let maxDepth, _) = error else {
                 XCTFail("Expected maxDepthExceeded error")
                 return
@@ -350,7 +350,7 @@ private func read<T: Sendable>(_ tracker: InvalidationTracker, _ value: @MainAct
 
 extension XCTestCase {
     func XCTAssertThrowsErrorAsync<T>(
-        _ expression: @autoclosure () async throws -> T,
+        _ expression: () async throws -> T,
         _ message: String = "",
         file: StaticString = #filePath,
         line: UInt = #line,
