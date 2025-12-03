@@ -1,7 +1,7 @@
 import XCTest
 @testable import SwiftUIQuery
+#if !os(Linux)
 
-@MainActor
 final class InvalidationTrackerTests: XCTestCase {
 
     // Helper tags
@@ -11,69 +11,64 @@ final class InvalidationTrackerTests: XCTestCase {
 
     // MARK: - Basic Tracking
 
-    func testBeginEndInvalidation() {
-        let tracker = InvalidationTracker()
+    func testBeginEndInvalidation() async throws {
+        let tracker = await makeTracker()
 
-        XCTAssertFalse(tracker.isInvalidating)
-        XCTAssertEqual(tracker.currentDepth, 0)
+        XCTAssertFalse(await read(tracker) { $0.isInvalidating })
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 0)
 
-        let token = try! tracker.beginInvalidation(tag: usersTag)
-        XCTAssertTrue(tracker.isInvalidating)
-        XCTAssertEqual(tracker.currentDepth, 1)
+        let token = try await beginInvalidation(tracker, tag: usersTag)
+        XCTAssertTrue(await read(tracker) { $0.isInvalidating })
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 1)
 
-        tracker.endInvalidation(token)
-        XCTAssertFalse(tracker.isInvalidating)
-        XCTAssertEqual(tracker.currentDepth, 0)
+        await endInvalidation(tracker, token: token)
+        XCTAssertFalse(await read(tracker) { $0.isInvalidating })
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 0)
     }
 
-    func testNestedInvalidations() {
-        let tracker = InvalidationTracker()
+    func testNestedInvalidations() async throws {
+        let tracker = await makeTracker()
 
-        let token1 = try! tracker.beginInvalidation(tag: usersTag)
-        XCTAssertEqual(tracker.currentDepth, 1)
+        let token1 = try await beginInvalidation(tracker, tag: usersTag)
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 1)
 
-        let token2 = try! tracker.beginInvalidation(tag: postsTag)
-        XCTAssertEqual(tracker.currentDepth, 2)
+        let token2 = try await beginInvalidation(tracker, tag: postsTag)
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 2)
 
-        let token3 = try! tracker.beginInvalidation(tag: commentsTag)
-        XCTAssertEqual(tracker.currentDepth, 3)
+        let token3 = try await beginInvalidation(tracker, tag: commentsTag)
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 3)
 
-        tracker.endInvalidation(token3)
-        XCTAssertEqual(tracker.currentDepth, 2)
+        await endInvalidation(tracker, token: token3)
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 2)
 
-        tracker.endInvalidation(token2)
-        XCTAssertEqual(tracker.currentDepth, 1)
+        await endInvalidation(tracker, token: token2)
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 1)
 
-        tracker.endInvalidation(token1)
-        XCTAssertEqual(tracker.currentDepth, 0)
+        await endInvalidation(tracker, token: token1)
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 0)
     }
 
     // MARK: - Cycle Detection
 
-    func testCycleDetectionWithTags() {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: false, logWarnings: false))
+    func testCycleDetectionWithTags() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: false, logWarnings: false))
 
-        // Start invalidating users
-        let token1 = try! tracker.beginInvalidation(tag: usersTag)
+        let token1 = try await beginInvalidation(tracker, tag: usersTag)
+        let token2 = try await beginInvalidation(tracker, tag: usersTag)
 
-        // Try to invalidate users again (cycle!)
-        let token2 = try! tracker.beginInvalidation(tag: usersTag)
-
-        // Token should indicate it was skipped
         XCTAssertTrue(token2.wasSkipped)
-        XCTAssertEqual(tracker.stats.cyclesDetected, 1)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 1)
 
-        tracker.endInvalidation(token2)
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token2)
+        await endInvalidation(tracker, token: token1)
     }
 
-    func testCycleDetectionThrows() throws {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: true, logWarnings: false))
+    func testCycleDetectionThrows() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: true, logWarnings: false))
 
-        let token1 = try tracker.beginInvalidation(tag: usersTag)
+        let token1 = try await beginInvalidation(tracker, tag: usersTag)
 
-        // Should throw on cycle
-        XCTAssertThrowsError(try tracker.beginInvalidation(tag: usersTag)) { error in
+        await XCTAssertThrowsErrorAsync({ try await beginInvalidation(tracker, tag: usersTag) }) { error in
             guard case InvalidationTracker.TrackerError.cycleDetected(let info) = error else {
                 XCTFail("Expected cycleDetected error")
                 return
@@ -82,75 +77,71 @@ final class InvalidationTrackerTests: XCTestCase {
             XCTAssertEqual(info.depth, 1)
         }
 
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token1)
     }
 
-    func testCycleDetectionWithKeys() {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: false, logWarnings: false))
+    func testCycleDetectionWithKeys() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: false, logWarnings: false))
 
-        let token1 = try! tracker.beginInvalidation(key: "user:123")
-        let token2 = try! tracker.beginInvalidation(key: "user:123") // cycle
+        let token1 = try await MainActor.run { try tracker.beginInvalidation(key: "user:123") }
+        let token2 = try await MainActor.run { try tracker.beginInvalidation(key: "user:123") }
 
         XCTAssertTrue(token2.wasSkipped)
-        XCTAssertEqual(tracker.stats.cyclesDetected, 1)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 1)
 
-        tracker.endInvalidation(token2)
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token2)
+        await endInvalidation(tracker, token: token1)
     }
 
-    func testIndirectCycleDetection() {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: false, logWarnings: false))
+    func testIndirectCycleDetection() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: false, logWarnings: false))
 
-        // A -> B -> C -> A (indirect cycle)
-        let tokenA = try! tracker.beginInvalidation(tag: usersTag, source: "A")
-        let tokenB = try! tracker.beginInvalidation(tag: postsTag, source: "B")
-        let tokenC = try! tracker.beginInvalidation(tag: commentsTag, source: "C")
+        let tokenA = try await beginInvalidation(tracker, tag: usersTag, source: "A")
+        let tokenB = try await beginInvalidation(tracker, tag: postsTag, source: "B")
+        let tokenC = try await beginInvalidation(tracker, tag: commentsTag, source: "C")
 
-        // Now try to go back to A
-        let tokenA2 = try! tracker.beginInvalidation(tag: usersTag, source: "A2")
+        let tokenA2 = try await beginInvalidation(tracker, tag: usersTag, source: "A2")
         XCTAssertTrue(tokenA2.wasSkipped)
-        XCTAssertEqual(tracker.stats.cyclesDetected, 1)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 1)
 
-        // Verify chain in stats
-        XCTAssertEqual(tracker.currentChain.count, 3)
-        XCTAssertEqual(tracker.currentChain[0].source, "A")
-        XCTAssertEqual(tracker.currentChain[1].source, "B")
-        XCTAssertEqual(tracker.currentChain[2].source, "C")
+        let chain = await read(tracker) { $0.currentChain }
+        XCTAssertEqual(chain.count, 3)
+        XCTAssertEqual(chain[0].source, "A")
+        XCTAssertEqual(chain[1].source, "B")
+        XCTAssertEqual(chain[2].source, "C")
 
-        tracker.endInvalidation(tokenA2)
-        tracker.endInvalidation(tokenC)
-        tracker.endInvalidation(tokenB)
-        tracker.endInvalidation(tokenA)
+        await endInvalidation(tracker, token: tokenA2)
+        await endInvalidation(tracker, token: tokenC)
+        await endInvalidation(tracker, token: tokenB)
+        await endInvalidation(tracker, token: tokenA)
     }
 
     // MARK: - Depth Limiting
 
-    func testMaxDepthExceeded() {
-        let tracker = InvalidationTracker(configuration: .init(maxDepth: 3, throwOnCycle: false, logWarnings: false))
+    func testMaxDepthExceeded() async throws {
+        let tracker = await makeTracker(.init(maxDepth: 3, throwOnCycle: false, logWarnings: false))
 
-        let token1 = try! tracker.beginInvalidation(tag: QueryTag("tag1"))
-        let token2 = try! tracker.beginInvalidation(tag: QueryTag("tag2"))
-        let token3 = try! tracker.beginInvalidation(tag: QueryTag("tag3"))
+        let token1 = try await beginInvalidation(tracker, tag: QueryTag("tag1"))
+        let token2 = try await beginInvalidation(tracker, tag: QueryTag("tag2"))
+        let token3 = try await beginInvalidation(tracker, tag: QueryTag("tag3"))
 
-        // This should exceed max depth
-        let token4 = try! tracker.beginInvalidation(tag: QueryTag("tag4"))
+        let token4 = try await beginInvalidation(tracker, tag: QueryTag("tag4"))
         XCTAssertTrue(token4.wasSkipped)
-        XCTAssertEqual(tracker.stats.depthExceededCount, 1)
+        XCTAssertEqual(await read(tracker) { $0.stats }.depthExceededCount, 1)
 
-        tracker.endInvalidation(token4)
-        tracker.endInvalidation(token3)
-        tracker.endInvalidation(token2)
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token4)
+        await endInvalidation(tracker, token: token3)
+        await endInvalidation(tracker, token: token2)
+        await endInvalidation(tracker, token: token1)
     }
 
-    func testMaxDepthThrows() throws {
-        let tracker = InvalidationTracker(configuration: .init(maxDepth: 2, throwOnCycle: true, logWarnings: false))
+    func testMaxDepthThrows() async {
+        let tracker = await makeTracker(.init(maxDepth: 2, throwOnCycle: true, logWarnings: false))
 
-        let token1 = try tracker.beginInvalidation(tag: QueryTag("tag1"))
-        let token2 = try tracker.beginInvalidation(tag: QueryTag("tag2"))
+        let token1 = try! await beginInvalidation(tracker, tag: QueryTag("tag1"))
+        let token2 = try! await beginInvalidation(tracker, tag: QueryTag("tag2"))
 
-        // Should throw on exceeding depth
-        XCTAssertThrowsError(try tracker.beginInvalidation(tag: QueryTag("tag3"))) { error in
+        await XCTAssertThrowsErrorAsync({ try await beginInvalidation(tracker, tag: QueryTag("tag3")) }) { error in
             guard case InvalidationTracker.TrackerError.maxDepthExceeded(let depth, let maxDepth, _) = error else {
                 XCTFail("Expected maxDepthExceeded error")
                 return
@@ -159,34 +150,34 @@ final class InvalidationTrackerTests: XCTestCase {
             XCTAssertEqual(maxDepth, 2)
         }
 
-        tracker.endInvalidation(token2)
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token2)
+        await endInvalidation(tracker, token: token1)
     }
 
     // MARK: - WithInvalidation
 
     func testWithInvalidation() async throws {
-        let tracker = InvalidationTracker()
+        let tracker = await makeTracker()
 
         var operationRan = false
 
         try await tracker.withInvalidation(tag: usersTag) {
             operationRan = true
-            XCTAssertTrue(tracker.isInvalidating)
-            XCTAssertEqual(tracker.currentDepth, 1)
+            XCTAssertTrue(await read(tracker) { $0.isInvalidating })
+            XCTAssertEqual(await read(tracker) { $0.currentDepth }, 1)
         }
 
         XCTAssertTrue(operationRan)
-        XCTAssertFalse(tracker.isInvalidating)
-        XCTAssertEqual(tracker.currentDepth, 0)
+        XCTAssertFalse(await read(tracker) { $0.isInvalidating })
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 0)
     }
 
     func testWithInvalidationCleansUpOnError() async {
-        let tracker = InvalidationTracker()
+        let tracker = await makeTracker()
 
         do {
             try await tracker.withInvalidation(tag: usersTag) {
-                XCTAssertEqual(tracker.currentDepth, 1)
+                XCTAssertEqual(await read(tracker) { $0.currentDepth }, 1)
                 throw CycleTestError.intentionalError
             }
             XCTFail("Should have thrown")
@@ -196,60 +187,58 @@ final class InvalidationTrackerTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
 
-        // Tracker should be cleaned up
-        XCTAssertFalse(tracker.isInvalidating)
-        XCTAssertEqual(tracker.currentDepth, 0)
+        XCTAssertFalse(await read(tracker) { $0.isInvalidating })
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 0)
     }
 
     // MARK: - Statistics
 
-    func testStatistics() {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: false, logWarnings: false))
+    func testStatistics() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: false, logWarnings: false))
 
-        XCTAssertEqual(tracker.stats.totalInvalidations, 0)
-        XCTAssertEqual(tracker.stats.cyclesDetected, 0)
-        XCTAssertEqual(tracker.stats.maxDepthReached, 0)
+        XCTAssertEqual(await read(tracker) { $0.stats }.totalInvalidations, 0)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 0)
+        XCTAssertEqual(await read(tracker) { $0.stats }.maxDepthReached, 0)
 
-        let token1 = try! tracker.beginInvalidation(tag: usersTag)
-        XCTAssertEqual(tracker.stats.totalInvalidations, 1)
-        XCTAssertEqual(tracker.stats.maxDepthReached, 1)
+        let token1 = try await beginInvalidation(tracker, tag: usersTag)
+        XCTAssertEqual(await read(tracker) { $0.stats }.totalInvalidations, 1)
+        XCTAssertEqual(await read(tracker) { $0.stats }.maxDepthReached, 1)
 
-        let token2 = try! tracker.beginInvalidation(tag: postsTag)
-        XCTAssertEqual(tracker.stats.totalInvalidations, 2)
-        XCTAssertEqual(tracker.stats.maxDepthReached, 2)
+        let token2 = try await beginInvalidation(tracker, tag: postsTag)
+        XCTAssertEqual(await read(tracker) { $0.stats }.totalInvalidations, 2)
+        XCTAssertEqual(await read(tracker) { $0.stats }.maxDepthReached, 2)
 
-        // Cycle
-        _ = try! tracker.beginInvalidation(tag: usersTag)
-        XCTAssertEqual(tracker.stats.totalInvalidations, 3)
-        XCTAssertEqual(tracker.stats.cyclesDetected, 1)
+        _ = try await beginInvalidation(tracker, tag: usersTag)
+        XCTAssertEqual(await read(tracker) { $0.stats }.totalInvalidations, 3)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 1)
 
-        tracker.endInvalidation(token2)
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token2)
+        await endInvalidation(tracker, token: token1)
     }
 
-    func testReset() {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: false, logWarnings: false))
+    func testReset() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: false, logWarnings: false))
 
-        _ = try! tracker.beginInvalidation(tag: usersTag)
-        _ = try! tracker.beginInvalidation(tag: usersTag) // cycle
+        _ = try await beginInvalidation(tracker, tag: usersTag)
+        _ = try await beginInvalidation(tracker, tag: usersTag) // cycle
 
-        XCTAssertEqual(tracker.stats.cyclesDetected, 1)
-        XCTAssertTrue(tracker.isInvalidating)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 1)
+        XCTAssertTrue(await read(tracker) { $0.isInvalidating })
 
-        tracker.reset()
+        await MainActor.run { tracker.reset() }
 
-        XCTAssertEqual(tracker.stats.cyclesDetected, 0)
-        XCTAssertFalse(tracker.isInvalidating)
-        XCTAssertEqual(tracker.currentDepth, 0)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 0)
+        XCTAssertFalse(await read(tracker) { $0.isInvalidating })
+        XCTAssertEqual(await read(tracker) { $0.currentDepth }, 0)
     }
 
     // MARK: - Callback
 
-    func testOnCycleDetectedCallback() {
+    func testOnCycleDetectedCallback() async throws {
         // Use nonisolated(unsafe) to satisfy Sendable requirement in test
         nonisolated(unsafe) var detectedCycle: InvalidationTracker.CycleInfo?
 
-        let tracker = InvalidationTracker(configuration: .init(
+        let tracker = await makeTracker(.init(
             throwOnCycle: false,
             logWarnings: false,
             onCycleDetected: { info in
@@ -257,15 +246,15 @@ final class InvalidationTrackerTests: XCTestCase {
             }
         ))
 
-        let token1 = try! tracker.beginInvalidation(tag: usersTag, source: "source1")
-        _ = try! tracker.beginInvalidation(tag: usersTag, source: "source2")
+        let token1 = try await beginInvalidation(tracker, tag: usersTag, source: "source1")
+        _ = try await beginInvalidation(tracker, tag: usersTag, source: "source2")
 
         XCTAssertNotNil(detectedCycle)
         XCTAssertEqual(detectedCycle?.trigger, "tag:users")
         XCTAssertEqual(detectedCycle?.chain.count, 1)
         XCTAssertEqual(detectedCycle?.chain[0].source, "source1")
 
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token1)
     }
 
     // MARK: - Configuration Presets
@@ -286,13 +275,13 @@ final class InvalidationTrackerTests: XCTestCase {
 
     // MARK: - CycleInfo Description
 
-    func testCycleInfoDescription() throws {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: true, logWarnings: false))
+    func testCycleInfoDescription() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: true, logWarnings: false))
 
-        let token1 = try tracker.beginInvalidation(tag: usersTag, source: "mutation1")
+        let token1 = try await beginInvalidation(tracker, tag: usersTag, source: "mutation1")
 
         do {
-            _ = try tracker.beginInvalidation(tag: usersTag, source: "mutation2")
+            _ = try await beginInvalidation(tracker, tag: usersTag, source: "mutation2")
             XCTFail("Should have thrown")
         } catch let error as InvalidationTracker.TrackerError {
             if case .cycleDetected(let info) = error {
@@ -303,27 +292,26 @@ final class InvalidationTrackerTests: XCTestCase {
             }
         }
 
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token1)
     }
 
     // MARK: - Different Tags Don't Cycle
 
-    func testDifferentTagsNoCycle() {
-        let tracker = InvalidationTracker(configuration: .init(throwOnCycle: true, logWarnings: false))
+    func testDifferentTagsNoCycle() async throws {
+        let tracker = await makeTracker(.init(throwOnCycle: true, logWarnings: false))
 
-        // Different tags should not trigger cycle detection
-        let token1 = try! tracker.beginInvalidation(tag: usersTag)
-        let token2 = try! tracker.beginInvalidation(tag: postsTag)
-        let token3 = try! tracker.beginInvalidation(tag: commentsTag)
+        let token1 = try await beginInvalidation(tracker, tag: usersTag)
+        let token2 = try await beginInvalidation(tracker, tag: postsTag)
+        let token3 = try await beginInvalidation(tracker, tag: commentsTag)
 
         XCTAssertFalse(token1.wasSkipped)
         XCTAssertFalse(token2.wasSkipped)
         XCTAssertFalse(token3.wasSkipped)
-        XCTAssertEqual(tracker.stats.cyclesDetected, 0)
+        XCTAssertEqual(await read(tracker) { $0.stats }.cyclesDetected, 0)
 
-        tracker.endInvalidation(token3)
-        tracker.endInvalidation(token2)
-        tracker.endInvalidation(token1)
+        await endInvalidation(tracker, token: token3)
+        await endInvalidation(tracker, token: token2)
+        await endInvalidation(tracker, token: token1)
     }
 }
 
@@ -332,3 +320,48 @@ final class InvalidationTrackerTests: XCTestCase {
 private enum CycleTestError: Error {
     case intentionalError
 }
+
+// MARK: - MainActor Helpers
+
+private func makeTracker(
+    _ configuration: InvalidationTracker.Configuration = .default
+) async -> InvalidationTracker {
+    await MainActor.run { InvalidationTracker(configuration: configuration) }
+}
+
+private func beginInvalidation(
+    _ tracker: InvalidationTracker,
+    tag: QueryTag,
+    source: String? = nil
+) async throws -> InvalidationToken {
+    try await MainActor.run { try tracker.beginInvalidation(tag: tag, source: source) }
+}
+
+private func endInvalidation(
+    _ tracker: InvalidationTracker,
+    token: InvalidationToken
+) async {
+    await MainActor.run { tracker.endInvalidation(token) }
+}
+
+private func read<T: Sendable>(_ tracker: InvalidationTracker, _ value: @MainActor (InvalidationTracker) -> T) async -> T {
+    await MainActor.run { value(tracker) }
+}
+
+extension XCTestCase {
+    func XCTAssertThrowsErrorAsync<T>(
+        _ expression: () async throws -> T,
+        _ message: String = "",
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ errorHandler: (Error) -> Void = { _ in }
+    ) async {
+        do {
+            _ = try await expression()
+            XCTFail(message.isEmpty ? "Expected error" : message, file: file, line: line)
+        } catch {
+            errorHandler(error)
+        }
+    }
+}
+#endif
