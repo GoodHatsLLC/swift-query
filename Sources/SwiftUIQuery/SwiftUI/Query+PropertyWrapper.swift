@@ -86,38 +86,6 @@ public struct Query<K: QueryKey>: @preconcurrency DynamicProperty {
     }
 }
 
-// MARK: - Query Actions
-
-/// Actions available via the projected value ($query)
-@MainActor
-public struct QueryActions<K: QueryKey> {
-    fileprivate weak var observer: QueryObserver<K>?
-    fileprivate let client: QueryClient
-    fileprivate let key: K
-    
-    /// Trigger a manual refetch
-    public func refetch() async {
-        await observer?.refetch()
-    }
-    
-    /// Invalidate and refetch the query
-    ///
-    /// Routes through QueryClient to ensure proper cycle detection.
-    public func invalidate() async {
-        await client.invalidate(key: key, source: "QueryActions<\(K.self)>")
-    }
-    
-    /// Set data directly in the cache
-    public func setData(_ data: K.Response) async {
-        await client.setQueryData(key, data: data)
-    }
-    
-    /// Get the current cached data
-    public func getData() async -> K.Response? {
-        await client.getQueryData(key)
-    }
-}
-
 // MARK: - UseQuery View Modifier
 
 /// View modifier for query lifecycle management

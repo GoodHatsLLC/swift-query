@@ -13,8 +13,13 @@ var targets: [Target] = [
             .product(name: "GRDB", package: "GRDB.swift"),
             .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             .product(name: "Crypto", package: "swift-crypto"),
-            "SQLiteSnapshotShims"
+            "SQLiteSnapshotShims",
+            "SwiftThreadingShim"
         ]
+    ),
+    .target(
+        name: "SwiftThreadingShim",
+        path: "Sources/SwiftThreadingShim"
     ),
     .executableTarget(
         name: "TestApp",
