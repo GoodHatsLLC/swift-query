@@ -1,6 +1,7 @@
 # SwiftQuery
 
-SwiftQuery makes data fetching in SwiftUI simpler and faster by handling caching, retries, and background refresh so your views stay in sync with server state. It also supports tag-based invalidation (you tag related queries and invalidate a tag to refresh everything that depends on it). It’s inspired by React Query.
+SwiftQuery makes data fetching in SwiftUI simpler and faster by handling caching, retries, and background refresh so your views stay in sync with server state. It supports tag-based invalidation (in which related queries are tagged and invalidating a tag to refreshes everything that depends on it).  
+SwiftQuery is inspired by [React Query](https://tanstack.com/query/latest).
 
 ## Features
 
@@ -21,7 +22,7 @@ Add the package in Xcode (File → Add Package Dependencies…) or in `Package.s
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/GoodHatsLLC/swift-query.git", from: "0.5.0")
+    .package(url: "https://github.com/GoodHatsLLC/swift-query.git", from: "0.9.0")
 ]
 ```
 
